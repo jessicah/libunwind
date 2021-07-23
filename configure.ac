@@ -118,6 +118,20 @@ case "$host_os" in
     ;;
 esac
 
+# Add headers on Haiku
+AC_MSG_CHECKING([for Haiku])
+case "$host_os" in
+  haiku)
+    CPPFLAGS="${CPPFLAGS} -I/system/develop/headers/private/runtime_loader"
+    CPPFLAGS="${CPPFLAGS} -I/system/develop/headers/private/system"
+    CPPFLAGS="${CPPFLAGS} -I/system/develop/headers/private/system/arch/$host_arch"
+    AC_MSG_RESULT([yes])
+    ;;
+  *)
+    AC_MSG_RESULT([no])
+    ;;
+esac
+
 AC_ARG_ENABLE(coredump,
 	AS_HELP_STRING([--enable-coredump],[building libunwind-coredump library]),,
         [AS_CASE([$host_arch], [aarch64*|arm*|mips*|sh*|x86*|tile*|riscv*], [enable_coredump=yes], [enable_coredump=no])]
