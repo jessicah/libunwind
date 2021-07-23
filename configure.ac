@@ -37,7 +37,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS(asm/ptrace_offsets.h asm/ptrace.h endian.h sys/endian.h sys/param.h \
 		execinfo.h ia64intrin.h sys/uc_access.h unistd.h signal.h sys/types.h \
 		sys/procfs.h sys/ptrace.h sys/syscall.h byteswap.h elf.h sys/elf.h \
-		link.h sys/link.h)
+		link.h sys/link.h ucontext.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -123,6 +123,13 @@ AC_ARG_ENABLE(coredump,
         [AS_CASE([$host_arch], [aarch64*|arm*|mips*|sh*|x86*|tile*|riscv*], [enable_coredump=yes], [enable_coredump=no])]
 )
 
+# Disable coredump if prstatus is missing
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#if !defined(HAVE_STRUCT_ELF_PRSTATUS) && !defined(HAVE_STRUCT_PRSTATUS)
+#error choke
+#endif
+]])], [], [enable_coredump=no])
+
 AC_MSG_CHECKING([if we should build libunwind-coredump])
 AC_MSG_RESULT([$enable_coredump])
 
@@ -192,6 +199,7 @@ AM_CONDITIONAL(ARCH_RISCV, test x$target_arch = xriscv)
 AM_CONDITIONAL(OS_LINUX, expr x$target_os : xlinux >/dev/null)
 AM_CONDITIONAL(OS_HPUX, expr x$target_os : xhpux >/dev/null)
 AM_CONDITIONAL(OS_FREEBSD, expr x$target_os : xfreebsd >/dev/null)
+AM_CONDITIONAL(OS_HAIKU, expr x$target_os : xhaiku >/dev/null)
 AM_CONDITIONAL(OS_QNX, expr x$target_os : xnto-qnx >/dev/null)
 AM_CONDITIONAL(OS_SOLARIS, expr x$target_os : xsolaris >/dev/null)
 
