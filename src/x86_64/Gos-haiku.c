@@ -39,7 +39,7 @@ unw_is_signal_frame (unw_cursor_t *cursor)
 {
   /* XXXKIB */
   struct cursor *c = (struct cursor *) cursor;
-  unw_word_t w0, w1, w2, b0, ip;
+  unw_word_t w0, w1, b0, b1, ip;
   unw_addr_space_t as;
   unw_accessors_t *a;
   void *arg;
@@ -48,39 +48,58 @@ unw_is_signal_frame (unw_cursor_t *cursor)
   as = c->dwarf.as;
   a = unw_get_accessors_int (as);
   arg = c->dwarf.as_arg;
-
-  /* Check if RIP points at sigreturn sequence.
-48 8d 7c 24 10          lea     SIGF_UC(%rsp),%rdi
-6a 00                   pushq   $0
-48 c7 c0 a1 01 00 00    movq    $SYS_sigreturn,%rax
-0f 05                   syscall
-f4              0:      hlt
-eb fd                   jmp     0b
-  */
-
   ip = c->dwarf.ip;
   c->sigcontext_format = X86_64_SCF_NONE;
+
+  /* Check if RIP points at sigreturn sequence.
+48 c7 c0 3f 00 00 00    mov     $SYSCALL_RESTORE_SIGNAL_FRAME, %rax
+4c 89 e7                mov     %r12, %rdi
+0f 05                   syscall
+  */
   if ((ret = (*a->access_mem) (as, ip, &w0, 0, arg)) < 0
-      || (ret = (*a->access_mem) (as, ip + 8, &w1, 0, arg)) < 0
-      || (ret = (*a->access_mem) (as, ip + 16, &w2, 0, arg)) < 0)
+      || (ret = (*a->access_mem) (as, ip + 8, &w1, 0, arg)) < 0)
     return 0;
-  w2 &= 0xffffff;
-  if (w0 == 0x48006a10247c8d48 &&
-      w1 == 0x050f000001a1c0c7 &&
-      w2 == 0x0000000000fdebf4)
+  w1 &= 0xffffffff;
+  if (w0 == 0x4c0000003fc0c748 &&
+      w1 == 0x00000000050fe789)
    {
      c->sigcontext_format = X86_64_SCF_HAIKU_SIGFRAME;
      return (c->sigcontext_format);
    }
-  /* Check if RIP points at standard syscall sequence.
-49 89 ca        mov    %rcx,%r10
-0f 05           syscall
+
+  /* Now these checks never occur... interesting */
+
+  /* Check if RIP points at standard syscall sequence with RCX
+49 89 ca             mov    %rcx,%r10
+48 c7 c0 .. .. 00 00 mov    $N,%rax
+0f 05                syscall
   */
-  if ((ret = (*a->access_mem) (as, ip - 5, &b0, 0, arg)) < 0)
+  if ((ret = (*a->access_mem) (as, ip - 12, &b0, 0, arg)) < 0
+      || (ret = (*a->access_mem) (as, ip - 12 + 8, &b1, 0, arg)) < 0)
     return (0);
-  Debug (12, "b0 0x%lx\n", b0);
-  if ((b0 & 0xffffffffffffff) == 0x050fca89490000 ||
-      (b0 & 0xffffffffff) == 0x050fca8949)
+  Debug (12, "b0.0 0x%08lx\n", b0);
+  Debug (12, "b1.0 0x%08lx\n", b1);
+  b0 &= 0x0000ffffffffffff;
+  b1 &= 0x000000ffffffffff;
+  if (b0 == 0x0000c0c748ca8949 &&
+      b1 == 0x000000c3050f0000)
+   {
+    c->sigcontext_format = X86_64_SCF_HAIKU_SYSCALL;
+    return (c->sigcontext_format);
+   }
+  /* Check if RIP points at standard syscall sequence without RCX
+48 c7 c0 .. .. 00 00 mov    $N,%rax
+0f 05                syscall
+  */
+  if ((ret = (*a->access_mem) (as, ip - 10, &b0, 0, arg)) < 0
+    || (ret = (*a->access_mem) (as, ip - 10 + 8, &b1, 0, arg)) < 0)
+    return (0);
+  Debug (12, "b0.1 0x%08lx\n", b0);
+  Debug (12, "b1.1 0x%08lx\n", b1);
+  b0 &= 0xffff0000ffffff;
+  b1 &= 0x0000000000ffff;
+  if (b0 == 0x0f00000000c0c748 &&
+      b1 == 0x00000000000005c3)
    {
     c->sigcontext_format = X86_64_SCF_HAIKU_SYSCALL;
     return (c->sigcontext_format);
