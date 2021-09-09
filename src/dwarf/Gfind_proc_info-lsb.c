@@ -592,8 +592,10 @@ dwarf_callback (struct dl_phdr_info *info, size_t size, void *ptr)
 
   /* Make sure struct dl_phdr_info is at least as big as we need.  */
   if (size < offsetof (struct dl_phdr_info, dlpi_phnum)
-             + sizeof (info->dlpi_phnum))
+             + sizeof (info->dlpi_phnum)) {
+    Debug (15, "invalid size: %ul\n", size);
     return -1;
+  }
 
   Debug (15, "checking %s, base=0x%lx)\n",
          info->dlpi_name, (long) info->dlpi_addr);
@@ -614,6 +616,8 @@ dwarf_callback (struct dl_phdr_info *info, size_t size, void *ptr)
 
           if (ip >= vaddr && ip < vaddr + phdr->p_memsz)
             p_text = phdr;
+          else
+            Debug(1, "ip (%08lx) not in address space %08lx-%08lx\n", ip, vaddr, vaddr + phdr->p_memsz);
 
           if (vaddr + phdr->p_filesz > max_load_addr)
             max_load_addr = vaddr + phdr->p_filesz;
@@ -806,6 +810,8 @@ dwarf_find_proc_info (unw_addr_space_t as, unw_word_t ip,
   SIGPROCMASK (SIG_SETMASK, &unwi_full_mask, &saved_mask);
   ret = dl_iterate_phdr (dwarf_callback, &cb_data);
   SIGPROCMASK (SIG_SETMASK, &saved_mask, NULL);
+  
+  Debug(15, "dl_iterate_phdr: %d\n", ret);
 
   if (ret > 0)
     {

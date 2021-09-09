@@ -153,7 +153,7 @@ libunwind_la_SOURCES_os_hpux = os-hpux.c
 
 libunwind_la_SOURCES_os_freebsd = os-freebsd.c
 
-libunwind_la_SOURCES_os_haiku = os-haiku.c dl-iterate-phdr.c
+libunwind_la_SOURCES_os_haiku = os-haiku.c dl-iterate-phdr-haiku.c
 
 libunwind_la_SOURCES_os_qnx = os-qnx.c
 

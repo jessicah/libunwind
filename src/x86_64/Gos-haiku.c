@@ -63,6 +63,7 @@ unw_is_signal_frame (unw_cursor_t *cursor)
   if (w0 == 0x4c0000003fc0c748 &&
       w1 == 0x00000000050fe789)
    {
+   	 Debug (12, "haiku sigframe\n");
      c->sigcontext_format = X86_64_SCF_HAIKU_SIGFRAME;
      return (c->sigcontext_format);
    }
@@ -110,21 +111,21 @@ unw_is_signal_frame (unw_cursor_t *cursor)
 HIDDEN int
 x86_64_handle_signal_frame (unw_cursor_t *cursor)
 {
-#if 0
+	#if 0
   struct cursor *c = (struct cursor *) cursor;
-  unw_word_t ucontext;
-  int ret;
+  unw_word_t ucontext = c->dwarf.cfa + sizeof (struct sigframe);
+  
   if (c->sigcontext_format == X86_64_SCF_HAIKU_SIGFRAME)
    {
-    ucontext = c->dwarf.cfa + offsetof(struct sigframe, sf_uc);
     c->sigcontext_addr = c->dwarf.cfa;
-    Debug(1, "signal frame, skip over trampoline\n");
+    Debug(1, "signal frame cfa = %lx ucontext = %lx\n",
+      (uint64_t)c->dwarf.cfa, (uint64_t)ucontext);
 
     struct dwarf_loc rsp_loc = DWARF_LOC (ucontext + UC_MCONTEXT_GREGS_RSP, 0);
-    ret = dwarf_get (&c->dwarf, rsp_loc, &c->dwarf.cfa);
+    int ret = dwarf_get (&c->dwarf, rsp_loc, &c->dwarf.cfa);
     if (ret < 0)
      {
-       Debug (2, "returning %d\n", ret);
+       Debug (2, "haiku returning %d\n", ret);
        return ret;
      }
 
@@ -146,15 +147,18 @@ x86_64_handle_signal_frame (unw_cursor_t *cursor)
     c->dwarf.loc[R15] = DWARF_LOC (ucontext + UC_MCONTEXT_GREGS_R15, 0);
     c->dwarf.loc[RIP] = DWARF_LOC (ucontext + UC_MCONTEXT_GREGS_RIP, 0);
 
+    c->dwarf.use_prev_instr = 1;
     return 0;
    }
   else if (c->sigcontext_format == X86_64_SCF_HAIKU_SYSCALL)
    {
-    c->dwarf.loc[RCX] = c->dwarf.loc[R10];
+   	Debug(1, "sigcontext_format == X86_64_SCF_HAIKU_SYSCALL");
+   	// some syscalls don't save RCX...
+   	c->dwarf.loc[RCX] = c->dwarf.loc[R10];
     /*  rsp_loc = DWARF_LOC(c->dwarf.cfa - 8, 0);       */
     /*  rbp_loc = c->dwarf.loc[RBP];                    */
     c->dwarf.loc[RIP] = DWARF_LOC (c->dwarf.cfa, 0);
-    ret = dwarf_get (&c->dwarf, c->dwarf.loc[RIP], &c->dwarf.ip);
+    int ret = dwarf_get (&c->dwarf, c->dwarf.loc[RIP], &c->dwarf.ip);
     Debug (1, "Frame Chain [RIP=0x%Lx] = 0x%Lx\n",
            (unsigned long long) DWARF_GET_LOC (c->dwarf.loc[RIP]),
            (unsigned long long) c->dwarf.ip);
@@ -170,6 +174,7 @@ x86_64_handle_signal_frame (unw_cursor_t *cursor)
   else
     return -UNW_EBADFRAME;
 #endif
+  Debug (14, "haiku handle signal frame\n");
   return -UNW_EBADFRAME;
 }
 
@@ -179,6 +184,8 @@ x86_64_r_uc_addr (ucontext_t *uc, int reg)
 {
   /* NOTE: common_init() in init.h inlines these for fast path access. */
   void *addr;
+  
+  Debug (14, "haiku:x86_64_r_uc_addr: %p, %p\n", uc, &(uc->uc_mcontext));
 
   switch (reg)
     {
@@ -209,12 +216,12 @@ x86_64_r_uc_addr (ucontext_t *uc, int reg)
 HIDDEN NORETURN void
 x86_64_sigreturn (unw_cursor_t *cursor)
 {
-#if 0
+	#if 0
   struct cursor *c = (struct cursor *) cursor;
   ucontext_t *uc = (ucontext_t *)(c->sigcontext_addr +
-    offsetof(struct sigframe, sf_uc));
+    sizeof(struct sigframe));
 
-  uc->uc_mcontext.r8 = c->uc->uc_mcontext.r8;
+  uc->uc_mcontext.r8 = c->uc_mcontext.r8;
   uc->uc_mcontext.r9 = c->uc->uc_mcontext.r9;
   uc->uc_mcontext.r10 = c->uc->uc_mcontext.r10;
   uc->uc_mcontext.r11 = c->uc->uc_mcontext.r11;
@@ -235,7 +242,8 @@ x86_64_sigreturn (unw_cursor_t *cursor)
   Debug (8, "resuming at ip=%llx via sigreturn(%p)\n",
              (unsigned long long) c->dwarf.ip, uc);
   sigreturn(uc);
-#endif
+  #endif
+  Debug (14, "haiku:x86_64_sigreturn: abort, c->uc is undefined\n");
   abort();
 }
 #endif
