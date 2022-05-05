@@ -29,7 +29,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include <link.h>
 
 #include "libunwind_i.h"
+#ifndef __HAIKU__
 #include "os-linux.h"
+#else
+#include "os-haiku.h"
+#endif
 
 #ifndef IS_ELF
 /* Copied from NDK header. */
