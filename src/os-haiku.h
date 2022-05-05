@@ -18,7 +18,7 @@ struct map_iterator
 static inline int
 maps_init(struct map_iterator *mi)
 {
-  ssize_t cookie;
+  ssize_t cookie = 0;
 
   team_info teamInfo;
   area_info areaInfo;
