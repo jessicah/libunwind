@@ -614,8 +614,10 @@ dwarf_callback (struct dl_phdr_info *info, size_t size, void *ptr)
         {
           Elf_W(Addr) vaddr = phdr->p_vaddr + load_base;
 
-          if (ip >= vaddr && ip < vaddr + phdr->p_memsz)
+          if (ip >= vaddr && ip < vaddr + phdr->p_memsz) {
             p_text = phdr;
+            Debug(1, "ip (%08lx) IN address space %08lx-%08lx\n", ip, vaddr, vaddr + phdr->p_memsz);
+          }
           else
             Debug(1, "ip (%08lx) not in address space %08lx-%08lx\n", ip, vaddr, vaddr + phdr->p_memsz);
 
@@ -665,6 +667,7 @@ dwarf_callback (struct dl_phdr_info *info, size_t size, void *ptr)
           /* For dynamicly linked executables and shared libraries,
              DT_PLTGOT is the value that data-relative addresses are
              relative to for that object.  We call this the "gp".  */
+          
           Elf_W(Dyn) *dyn = (Elf_W(Dyn) *)(p_dynamic->p_vaddr + load_base);
           for (; dyn->d_tag != DT_NULL; ++dyn)
             if (dyn->d_tag == DT_PLTGOT)
